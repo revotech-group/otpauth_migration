@@ -4,6 +4,7 @@ library otpauth_migration;
 import 'dart:convert';
 import 'dart:typed_data';
 import 'generated/GoogleAuthenticatorImport.pb.dart';
+import 'package:base32/base32.dart';
 
 /// A stateless class (not a singleton) that provides encode and decode functions for the otpauth-migration URI format used to import into and export 2FA secrets from the Google Authenticator app
 class OtpAuthMigration {
@@ -49,6 +50,7 @@ class OtpAuthMigration {
       int batchSize = -1,
       int batchIndex = -1,
       int batchId = -1}) {
+    String secret;
     var gai = GoogleAuthenticatorImport();
     for (var otp in otpAuths) {
       var uri = Uri.parse(otp);
@@ -59,7 +61,9 @@ class OtpAuthMigration {
       gaip.name = Uri.decodeFull(uri.path.substring(1));
       //print("name = ${gaip.name}");
       try {
-        gaip.secret = _encodeBase32(uri.queryParameters['secret']);
+        secret = uri.queryParameters['secret']!;
+
+        gaip.secret = base32.decode(secret);
       } catch (e) {
         return "";
       }
@@ -81,9 +85,9 @@ class OtpAuthMigration {
     final bytes = gai.writeToBuffer();
     return "otpauth-migration://offline?data=${base64.encode(bytes)}";
   }
-  
+
   int batchSize(String value) {
-  	RegExp exp = RegExp(r"otpauth-migration\:\/\/offline\?data=(.*)$");
+    RegExp exp = RegExp(r"otpauth-migration\:\/\/offline\?data=(.*)$");
     final match = exp.firstMatch(value);
     final encodedUrl = match?.group(1);
     if (encodedUrl != null) {
@@ -93,16 +97,16 @@ class OtpAuthMigration {
       try {
         final gai = GoogleAuthenticatorImport.fromBuffer(decoded);
         return gai.batchSize;
-      } catch(e) {
-      	return -1;
+      } catch (e) {
+        return -1;
       }
     } else {
-    	return -1;
+      return -1;
     }
   }
-  
+
   int batchIndex(String value) {
-  	RegExp exp = RegExp(r"otpauth-migration\:\/\/offline\?data=(.*)$");
+    RegExp exp = RegExp(r"otpauth-migration\:\/\/offline\?data=(.*)$");
     final match = exp.firstMatch(value);
     final encodedUrl = match?.group(1);
     if (encodedUrl != null) {
@@ -112,11 +116,11 @@ class OtpAuthMigration {
       try {
         final gai = GoogleAuthenticatorImport.fromBuffer(decoded);
         return gai.batchIndex;
-      } catch(e) {
-      	return -1;
+      } catch (e) {
+        return -1;
       }
     } else {
-    	return -1;
+      return -1;
     }
   }
 
@@ -141,41 +145,45 @@ class OtpAuthMigration {
         //print(gai.otpParameters.length);
         for (var param in gai.otpParameters) {
           //print(param);
-          var base32 = _decodeBase32(param.secret);
-          //print("otpauth://totp/${param.name}?secret=${base32}");
+          // var base32 = _decodeBase32(param.secret);
+
+          var output = base32.encode(param.secret as Uint8List);
+          print("output $output");
+
           final name = Uri.encodeFull(param.name);
           final issuer = Uri.encodeComponent(param.issuer);
           String algorithm = "";
-          switch(param.algorithm) {
-          case GoogleAuthenticatorImport_Algorithm.ALGORITHM_SHA1:
-          	algorithm = "&algorithm=SHA1";
-          	break;
-          case GoogleAuthenticatorImport_Algorithm.ALGORITHM_SHA256:
-          	algorithm = "&algorithm=SHA256";
-          	break;
-          case GoogleAuthenticatorImport_Algorithm.ALGORITHM_SHA512:
-          	algorithm = "&algorithm=SHA512";
-          	break;
-          case GoogleAuthenticatorImport_Algorithm.ALGORITHM_MD5:
-          	algorithm = "&algorithm=MD5";
-          	break;
-          default:
-          	algorithm = "";
-          	break;
+          switch (param.algorithm) {
+            case GoogleAuthenticatorImport_Algorithm.ALGORITHM_SHA1:
+              algorithm = "&algorithm=SHA1";
+              break;
+            case GoogleAuthenticatorImport_Algorithm.ALGORITHM_SHA256:
+              algorithm = "&algorithm=SHA256";
+              break;
+            case GoogleAuthenticatorImport_Algorithm.ALGORITHM_SHA512:
+              algorithm = "&algorithm=SHA512";
+              break;
+            case GoogleAuthenticatorImport_Algorithm.ALGORITHM_MD5:
+              algorithm = "&algorithm=MD5";
+              break;
+            default:
+              algorithm = "";
+              break;
           }
           String digits = "";
-          switch(param.digits) {
-          case GoogleAuthenticatorImport_DigitCount.DIGIT_COUNT_SIX:
-          	digits = "&digits=6";
-          	break;
-          case GoogleAuthenticatorImport_DigitCount.DIGIT_COUNT_EIGHT:
-          	digits = "&digits=8";
-          	break;
-          default:
-          	digits = "";
-          	break;
+          switch (param.digits) {
+            case GoogleAuthenticatorImport_DigitCount.DIGIT_COUNT_SIX:
+              digits = "&digits=6";
+              break;
+            case GoogleAuthenticatorImport_DigitCount.DIGIT_COUNT_EIGHT:
+              digits = "&digits=8";
+              break;
+            default:
+              digits = "";
+              break;
           }
-          results.add("otpauth://totp/$name?secret=$base32&issuer=$issuer$algorithm$digits&period=30");
+          results.add(
+              "otpauth://totp/$name?secret=$base32&issuer=$issuer$algorithm$digits&period=30");
         }
 
         //print("good");
