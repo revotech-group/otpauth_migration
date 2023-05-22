@@ -147,8 +147,8 @@ class OtpAuthMigration {
           //print(param);
           // var base32 = _decodeBase32(param.secret);
 
-          var output = base32.encode(param.secret as Uint8List);
-          print("output $output");
+          var secret = base32.encode(param.secret as Uint8List);
+          print("output $secret");
 
           final name = Uri.encodeFull(param.name);
           final issuer = Uri.encodeComponent(param.issuer);
@@ -183,7 +183,7 @@ class OtpAuthMigration {
               break;
           }
           results.add(
-              "otpauth://totp/$name?secret=$base32&issuer=$issuer$algorithm$digits&period=30");
+              "otpauth://totp/$name?secret=$secret&issuer=$issuer$algorithm$digits&period=30");
         }
 
         //print("good");
